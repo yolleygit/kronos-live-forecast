@@ -20,7 +20,7 @@ Config = {
     "INTERVAL": '1h',
     "HIST_POINTS": 360,
     "PRED_HORIZON": 24,
-    "N_PREDICTIONS": 10,
+    "N_PREDICTIONS": 30,
     "VOL_WINDOW": 24,
 }
 

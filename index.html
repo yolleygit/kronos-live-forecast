@@ -12,7 +12,7 @@
     <header>
         <div class="container">
             <h1 class="project-title">Kronos: Live Probabilistic Forecast</h1>
-            <p class="subtitle">An Application of "A Foundation Model for the Language of Financial Markets"</p>
+            <p class="subtitle">A Demo of "A Foundation Model for the Language of Financial Markets"</p>
             <a href="https://github.com/shiyu-coder/Kronos" target="_blank" class="repo-link">View Project on GitHub</a>
         </div>
     </header>
@@ -22,7 +22,7 @@
         <section id="live-dashboard">
             <h2>Live BTC/USDT Forecast Dashboard</h2>
             <div class="metadata">
-                <span>Last Updated (UTC): <strong id="update-time">2025-07-11 11:52:04</strong></span>
+                <span>Last Updated (UTC): <strong id="update-time">2025-07-11 12:02:19</strong></span>
                 <span>Data Source: Binance | Interval: 1-Hour</span>
             </div>
 
@@ -33,8 +33,8 @@
                     <div class="metric-desc">The model's confidence that the price in 24 hours will be higher than the last known price.</div>
                 </div>
                 <div class="metric-card">
-                    <h3>Volatility Amplification (24h)</h3>
-                    <p class="metric-value" id="vol-amp-prob">90.0%</p>
+                    <h3>Volatility Amplification (Next 24h)</h3>
+                    <p class="metric-value" id="vol-amp-prob">83.3%</p>
                     <div class="metric-desc">The probability that predicted volatility over the next 24h will exceed recent historical volatility.</div>
                 </div>
             </div>
@@ -51,11 +51,11 @@
         <!-- Section 2: Methodology -->
         <section id="methodology">
             <h2>Methodology Overview</h2>
-            <p>This demonstration showcases the forecasting capabilities of <strong>Kronos</strong>, a foundation model pre-trained on the "language" of financial markets. The predictions are generated using the following process:</p>
+            <p>This demo showcases the forecasting results of <strong>Kronos</strong>, a foundation model pre-trained on the "language" of financial markets. The predictions are generated using the following process:</p>
             <ul>
                 <li><strong>Model:</strong> The `Kronos-small` (25M parameters) model is used to autoregressively predict future K-line data.</li>
                 <li><strong>Data Context:</strong> The model uses the last 360 hours (~15 days) of BTC/USDT 1h K-line data from Binance as context for each new prediction.</li>
-                <li><strong>Probabilistic Forecasting:</strong> We employ Monte Carlo sampling (N=10 paths) to generate a distribution of possible future price trajectories, not just a single point forecast.</li>
+                <li><strong>Probabilistic Forecasting:</strong> We employ Monte Carlo sampling (N=30 paths) to generate a distribution of possible future price trajectories, not just a single point forecast.</li>
                 <li><strong>Derived Insights:</strong> The resulting distribution is analyzed to produce the mean forecast (solid line), the uncertainty range (shaded area), and the key probability metrics shown above.</li>
             </ul>
         </section>
