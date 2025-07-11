@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kronos Live Forecast Demo | BTC/USDT</title>
+    <title>Kronos Live Forecast | BTC/USDT</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <div class="container">
-            <h1>Kronos: A Live Forecast Demonstration</h1>
-            <p class="subtitle">Applying a Foundation Model for Financial Time Series to BTC/USDT</p>
+            <h1 class="project-title">Kronos: Live Probabilistic Forecast</h1>
+            <p class="subtitle">An Application of "A Foundation Model for the Language of Financial Markets"</p>
             <a href="https://github.com/shiyu-coder/Kronos" target="_blank" class="repo-link">View Project on GitHub</a>
         </div>
     </header>
@@ -21,19 +21,19 @@
         <section id="live-dashboard">
             <h2>Live BTC/USDT Forecast Dashboard</h2>
             <div class="metadata">
-                <span>Last Updated (UTC): P25-07-11 11:18:20</strong></span>
+                <span>Last Updated (UTC): <strong id="update-time">2025-07-11 11:33:21</strong></span>
                 <span>Data Source: Binance | Interval: 1-Hour</span>
             </div>
 
             <div class="metrics-container">
                 <div class="metric-card">
-                    <h3>Upside Probability (Next 1h)</h3>
-                    x.0%</p>
-                    <div class="metric-desc">The model's confidence that the next closing price will be higher than the last known price.</div>
+                    <h3>Upside Probability (Next 24h)</h3>
+                    <p class="metric-value" id="upside-prob">90.0%</p>
+                    <div class="metric-desc">The model's confidence that the price in 24 hours will be higher than the last known price.</div>
                 </div>
                 <div class="metric-card">
                     <h3>Volatility Amplification (24h)</h3>
-                    H0.0%</p>
+                    <p class="metric-value" id="vol-amp-prob">10.0%</p>
                     <div class="metric-desc">The probability that predicted volatility over the next 24h will exceed recent historical volatility.</div>
                 </div>
             </div>
@@ -52,10 +52,10 @@
             <h2>Methodology Overview</h2>
             <p>This demonstration showcases the forecasting capabilities of <strong>Kronos</strong>, a foundation model pre-trained on the "language" of financial markets. The predictions are generated using the following process:</p>
             <ul>
-                <li><strong>Model:</strong> The `Kronos-small` (25M parameters) model is used to autoregressively predict future K-line data.</li>
-                <li><strong>Probabilistic Forecasting:</strong> We employ Monte Carlo sampling (N=10 paths) to generate a distribution of possible future price trajectories, not just a single point forecast. This allows us to quantify uncertainty and calculate probabilities.</li>
-                <li><strong>Data:</strong> The model uses the last 360 hours (~15 days) of BTC/USDT 1h K-line data from Binance as context.</li>
-                <li><strong>Automation:</strong> This page is updated automatically every hour by a script that fetches new data, runs the model, generates all assets, and pushes the changes to GitHub.</li>
+                <li><strong>Model:</strong> The `Kronos-mini` model is used to autoregressively predict future K-line data.</li>
+                <li><strong>Data Context:</strong> The model uses the last 360 hours (~15 days) of BTC/USDT 1h K-line data from Binance as context for each new prediction.</li>
+                <li><strong>Probabilistic Forecasting:</strong> We employ Monte Carlo sampling (N=10 paths) to generate a distribution of possible future price trajectories, not just a single point forecast.</li>
+                <li><strong>Derived Insights:</strong> The resulting distribution is analyzed to produce the mean forecast (solid line), the uncertainty range (shaded area), and the key probability metrics shown above.</li>
             </ul>
         </section>
 
