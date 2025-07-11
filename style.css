@@ -1,4 +1,4 @@
-/* 全局样式 */
+
 body {
     font-family: 'Lato', sans-serif;
     line-height: 1.6;
@@ -8,7 +8,7 @@ body {
     color: #333;
 }
 
-/* 容器 */
+
 .container {
     max-width: 960px;
     margin: auto;
@@ -16,7 +16,7 @@ body {
     padding: 0 2rem;
 }
 
-/* 头部 */
+
 header {
     background: #2c3e50;
     color: #ecf0f1;
@@ -36,7 +36,7 @@ header .subtitle {
     color: #bdc3c7;
 }
 
-/* 主内容区域 */
+
 main {
     max-width: 900px;
     margin: 2rem auto;
@@ -59,7 +59,7 @@ h2 {
     margin-top: 0;
 }
 
-/* 项目简介部分 */
+
 .abstract p {
     font-size: 1.1rem;
 }
@@ -76,7 +76,7 @@ h2 {
     color: #2c3e50;
 }
 
-/* 预测卡片 */
+
 .prediction-card p {
     margin-bottom: 1.5rem;
 }
@@ -93,7 +93,7 @@ h2 {
     border-radius: 4px;
 }
 
-/* 关键指标摘要 */
+
 .metrics-summary {
     background: #fff;
     margin-bottom: 1.5rem;
@@ -107,12 +107,12 @@ h2 {
     justify-content: space-around;
     gap: 1.5rem;
     text-align: center;
-    flex-wrap: wrap; /* 在小屏幕上换行 */
+    flex-wrap: wrap;
 }
 
 .metric-card {
     flex: 1;
-    min-width: 200px; /* 保证卡片最小宽度 */
+    min-width: 200px;
     padding: 1.5rem;
     background-color: #f8f9fa;
     border-radius: 8px;
@@ -139,7 +139,6 @@ h2 {
 }
 
 
-/* 页脚 */
 footer {
     text-align: center;
     padding: 1.5rem 0;
@@ -148,7 +147,6 @@ footer {
     font-size: 0.9rem;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
     header h1 {
         font-size: 2rem;

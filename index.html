@@ -1,23 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC/USDT Probabilistic K-Line Prediction</title>
+    <title>BTC/USDT Probabilistic K-Line Forecast</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
-        <h1>BTC/USDT 概率性K线预测模型</h1>
+        <h1>BTC/USDT Probabilistic K-Line Forecast Model</h1>
         <p class="subtitle">A Research Demonstration of Probabilistic Forecasting</p>
     </header>
 
     <main>
         <section class="abstract">
-            <h2>项目简介</h2>
+            <h2>Abstract</h2>
             <p>
-                本项目利用基于蒙特卡洛方法的深度学习模型，对币安（Binance）交易所的 BTC/USDT 交易对未来数小时的K线进行概率性预测。通过多次（N次）独立预测，我们不仅能得到期望的走势，还能量化预测的不确定性。
+                This project utilizes a deep learning model, enhanced with Monte Carlo methods, to generate probabilistic forecasts for the hourly (1h) K-line data of the BTC/USDT trading pair on the Binance exchange. By generating multiple (N) independent predictions, we can not only estimate the expected trend but also quantify the forecast uncertainty.
             </p>
             <div class="metadata">
                 Last Updated (UTC): <span id="update-time">2023-01-01 12:00:00</span>
@@ -25,25 +25,25 @@
         </section>
 
         <section class="metrics-summary">
-            <h2>关键预测指标 (Next Hour)</h2>
+            <h2>Key Predictive Metrics (Next Hour)</h2>
             <div class="metrics-container">
                 <div class="metric-card">
-                    <h3>上涨概率</h3>
+                    <h3>Upside Probability</h3>
                     <p class="metric-value" id="upside-prob">--%</p>
-                    <div class="metric-desc">预测收盘价高于当前价的概率</div>
+                    <div class="metric-desc">The probability that the next closing price will be higher than the current price.</div>
                 </div>
                 <div class="metric-card">
-                    <h3>波动率放大概率</h3>
+                    <h3>Volatility Amplification Probability</h3>
                     <p class="metric-value" id="vol-amp-prob">--%</p>
-                    <div class="metric-desc">预测波动率超过近期历史波动率的概率</div>
+                    <div class="metric-desc">The probability that the predicted volatility will exceed the recent historical volatility.</div>
                 </div>
             </div>
         </section>
 
         <section class="prediction-card">
-            <h2>综合预测图表 (Close & Volume)</h2>
+            <h2>Comprehensive Forecast Chart (Close & Volume)</h2>
             <p>
-                下图上半部分展示了收盘价的预测。蓝色实线为历史价格，橙色实线为N次预测的均值，阴影区域代表了预测的可能范围（最小值到最大值）。下半部分展示了交易量的预测，柱状图为历史值，橙色线为预测均值。红色虚线标示了历史与预测的分割点。
+                The upper subplot below displays the close price forecast. The solid blue line represents the historical price, while the orange line shows the mean of N predictions. The shaded area indicates the potential forecast range (from minimum to maximum). The lower subplot shows the volume forecast, with historical values as bars and the mean prediction as a line. A dashed red line marks the boundary between historical data and the forecast.
             </p>
             <div class="chart-container">
                 <img src="prediction_chart.png" alt="Comprehensive Prediction Chart" class="chart-img">
