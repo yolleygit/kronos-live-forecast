@@ -1,0 +1,162 @@
+/* 全局样式 */
+body {
+    font-family: 'Lato', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f9;
+    color: #333;
+}
+
+/* 容器 */
+.container {
+    max-width: 960px;
+    margin: auto;
+    overflow: hidden;
+    padding: 0 2rem;
+}
+
+/* 头部 */
+header {
+    background: #2c3e50;
+    color: #ecf0f1;
+    padding: 2rem 0;
+    text-align: center;
+    border-bottom: 4px solid #3498db;
+}
+
+header h1 {
+    font-family: 'Roboto Slab', serif;
+    margin: 0;
+    font-size: 2.5rem;
+}
+
+header .subtitle {
+    font-size: 1.2rem;
+    color: #bdc3c7;
+}
+
+/* 主内容区域 */
+main {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+section {
+    background: #fff;
+    margin-bottom: 1.5rem;
+    padding: 1.5rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+h2 {
+    font-family: 'Roboto Slab', serif;
+    color: #34495e;
+    border-bottom: 2px solid #ecf0f1;
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+}
+
+/* 项目简介部分 */
+.abstract p {
+    font-size: 1.1rem;
+}
+
+.metadata {
+    text-align: right;
+    font-style: italic;
+    color: #7f8c8d;
+    margin-top: 1rem;
+}
+
+#update-time {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+/* 预测卡片 */
+.prediction-card p {
+    margin-bottom: 1.5rem;
+}
+
+.chart-container {
+    width: 100%;
+    text-align: center;
+}
+
+.chart-img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* 关键指标摘要 */
+.metrics-summary {
+    background: #fff;
+    margin-bottom: 1.5rem;
+    padding: 1.5rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.metrics-container {
+    display: flex;
+    justify-content: space-around;
+    gap: 1.5rem;
+    text-align: center;
+    flex-wrap: wrap; /* 在小屏幕上换行 */
+}
+
+.metric-card {
+    flex: 1;
+    min-width: 200px; /* 保证卡片最小宽度 */
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.metric-card h3 {
+    margin-top: 0;
+    font-family: 'Roboto Slab', serif;
+    color: #495057;
+    font-size: 1.2rem;
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #3498db;
+    margin: 0.5rem 0;
+}
+
+.metric-desc {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+
+/* 页脚 */
+footer {
+    text-align: center;
+    padding: 1.5rem 0;
+    background: #34495e;
+    color: #ecf0f1;
+    font-size: 0.9rem;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 2rem;
+    }
+    main {
+        padding: 0;
+    }
+    section {
+        padding: 1rem 1.5rem;
+    }
+}
