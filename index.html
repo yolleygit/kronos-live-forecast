@@ -3,57 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC/USDT Probabilistic K-Line Forecast</title>
+    <title>Kronos Live Forecast Demo | BTC/USDT</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
-        <h1>BTC/USDT Probabilistic K-Line Forecast Model</h1>
-        <p class="subtitle">A Research Demonstration of Probabilistic Forecasting</p>
+        <div class="container">
+            <h1>Kronos: A Live Forecast Demonstration</h1>
+            <p class="subtitle">Applying a Foundation Model for Financial Time Series to BTC/USDT</p>
+            <a href="https://github.com/shiyu-coder/Kronos" target="_blank" class="repo-link">View Project on GitHub</a>
+        </div>
     </header>
 
-    <main>
-        <section class="abstract">
-            <h2>Abstract</h2>
-            <p>
-                This project utilizes a deep learning model, enhanced with Monte Carlo methods, to generate probabilistic forecasts for the hourly (1h) K-line data of the BTC/USDT trading pair on the Binance exchange. By generating multiple (N) independent predictions, we can not only estimate the expected trend but also quantify the forecast uncertainty.
-            </p>
+    <main class="container">
+        <!-- Section 1: The Live Dashboard -->
+        <section id="live-dashboard">
+            <h2>Live BTC/USDT Forecast Dashboard</h2>
             <div class="metadata">
-                Last Updated (UTC): P25-07-11 10:34:44</span>
+                <span>Last Updated (UTC): P25-07-11 11:18:20</strong></span>
+                <span>Data Source: Binance | Interval: 1-Hour</span>
             </div>
-        </section>
 
-        <section class="metrics-summary">
-            <h2>Key Predictive Metrics (Next Hour)</h2>
             <div class="metrics-container">
                 <div class="metric-card">
-                    <h3>Upside Probability</h3>
-                    X.0%</p>
-                    <div class="metric-desc">The probability that the next closing price will be higher than the current price.</div>
+                    <h3>Upside Probability (Next 1h)</h3>
+                    x.0%</p>
+                    <div class="metric-desc">The model's confidence that the next closing price will be higher than the last known price.</div>
                 </div>
                 <div class="metric-card">
-                    <h3>Volatility Amplification Probability</h3>
-                    X.0%</p>
-                    <div class="metric-desc">The probability that the predicted volatility will exceed the recent historical volatility.</div>
+                    <h3>Volatility Amplification (24h)</h3>
+                    H0.0%</p>
+                    <div class="metric-desc">The probability that predicted volatility over the next 24h will exceed recent historical volatility.</div>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h3>24-Hour Probabilistic Forecast</h3>
+                <p>The chart below shows the historical price (blue) and the probabilistic forecast (orange). The orange line is the mean of multiple Monte Carlo simulations, and the shaded area represents the full range of predicted outcomes, indicating forecast uncertainty.</p>
+                <div class="chart-container">
+                    <img src="prediction_chart.png" alt="BTC/USDT Price and Volume Forecast Chart" class="chart-img">
                 </div>
             </div>
         </section>
 
-        <section class="prediction-card">
-            <h2>Comprehensive Forecast Chart (Close & Volume)</h2>
-            <p>
-                The upper subplot below displays the close price forecast. The solid blue line represents the historical price, while the orange line shows the mean of N predictions. The shaded area indicates the potential forecast range (from minimum to maximum). The lower subplot shows the volume forecast, with historical values as bars and the mean prediction as a line. A dashed red line marks the boundary between historical data and the forecast.
-            </p>
-            <div class="chart-container">
-                <img src="prediction_chart.png" alt="Comprehensive Prediction Chart" class="chart-img">
-            </div>
+        <!-- Section 2: Methodology -->
+        <section id="methodology">
+            <h2>Methodology Overview</h2>
+            <p>This demonstration showcases the forecasting capabilities of <strong>Kronos</strong>, a foundation model pre-trained on the "language" of financial markets. The predictions are generated using the following process:</p>
+            <ul>
+                <li><strong>Model:</strong> The `Kronos-small` (25M parameters) model is used to autoregressively predict future K-line data.</li>
+                <li><strong>Probabilistic Forecasting:</strong> We employ Monte Carlo sampling (N=10 paths) to generate a distribution of possible future price trajectories, not just a single point forecast. This allows us to quantify uncertainty and calculate probabilities.</li>
+                <li><strong>Data:</strong> The model uses the last 360 hours (~15 days) of BTC/USDT 1h K-line data from Binance as context.</li>
+                <li><strong>Automation:</strong> This page is updated automatically every hour by a script that fetches new data, runs the model, generates all assets, and pushes the changes to GitHub.</li>
+            </ul>
         </section>
 
+        <!-- Section 3: About the Project -->
+        <section id="about-project">
+            <h2>About The Kronos Project</h2>
+            <p>Kronos is the first open-source foundation model for financial candlesticks (K-lines), trained on data from over 45 global exchanges. It is designed to serve as a unified model for diverse quantitative finance tasks. </p>
+            <div class="project-links">
+                <a href="https://github.com/shiyu-coder/Kronos" class="btn btn-primary" target="_blank">View on GitHub</a>
+                <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Read the Paper (Coming Soon)</a>
+            </div>
+        </section>
     </main>
 
     <footer>
-        <p>&copy; 2024 Your Name / Your Lab. All Rights Reserved.</p>
+        <div class="container">
+            <p>&copy; 2024 The Kronos Project. Licensed under the MIT License.</p>
+        </div>
     </footer>
 </body>
 </html>
