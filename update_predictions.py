@@ -1,3 +1,4 @@
+import gc
 import os
 import re
 import subprocess
@@ -8,6 +9,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
 from binance.client import Client
 
 from model import KronosTokenizer, Kronos, KronosPredictor
@@ -50,23 +52,25 @@ def make_prediction(df, predictor):
     x_timestamp = df['timestamps']
     x_df = df[['open', 'high', 'low', 'close', 'volume', 'amount']]
 
-    print("Making main prediction (T=0.6)...")
-    begin_time = time.time()
-    close_preds_main, volume_preds_main = predictor.predict(
-        df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
-        pred_len=Config["PRED_HORIZON"], T=0.6, top_p=0.9,
-        sample_count=Config["N_PREDICTIONS"], verbose=True
-    )
-    print(f"Main prediction completed in {time.time() - begin_time:.2f} seconds.")
+    with torch.no_grad():
+        print("Making main prediction (T=1.0)...")
+        begin_time = time.time()
+        close_preds_main, volume_preds_main = predictor.predict(
+            df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+            pred_len=Config["PRED_HORIZON"], T=1.0, top_p=0.95,
+            sample_count=Config["N_PREDICTIONS"], verbose=True
+        )
+        print(f"Main prediction completed in {time.time() - begin_time:.2f} seconds.")
 
-    print("Making volatility prediction (T=0.9)...")
-    begin_time = time.time()
-    close_preds_volatility, _ = predictor.predict(
-        df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
-        pred_len=Config["PRED_HORIZON"], T=0.9, top_p=0.9,
-        sample_count=Config["N_PREDICTIONS"], verbose=True
-    )
-    print(f"Volatility prediction completed in {time.time() - begin_time:.2f} seconds.")
+        # print("Making volatility prediction (T=0.9)...")
+        # begin_time = time.time()
+        # close_preds_volatility, _ = predictor.predict(
+        #     df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+        #     pred_len=Config["PRED_HORIZON"], T=0.9, top_p=0.9,
+        #     sample_count=Config["N_PREDICTIONS"], verbose=True
+        # )
+        # print(f"Volatility prediction completed in {time.time() - begin_time:.2f} seconds.")
+        close_preds_volatility = close_preds_main
 
     return close_preds_main, volume_preds_main, close_preds_volatility
 
@@ -238,6 +242,15 @@ def main_task(model):
 
     commit_message = f"Auto-update forecast for {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC"
     git_commit_and_push(commit_message)
+
+    # --- 新增的内存清理步骤 ---
+    # 显式删除大的DataFrame对象，帮助垃圾回收器
+    del df_full, df_for_model, close_preds, volume_preds, v_close_preds
+    del hist_df_for_plot, hist_df_for_metrics
+
+    # 强制执行垃圾回收
+    gc.collect()
+    # --- 内存清理结束 ---
 
     print("-" * 60 + "\n--- Task completed successfully ---\n" + "-" * 60 + "\n")
 
