@@ -17,7 +17,7 @@ from binance.client import Client
 from model import KronosTokenizer, Kronos, KronosPredictor
 
 
-def load_config(config_path="config.yaml"):
+def load_config(config_path="../configs/config.yaml"):
     """加载配置文件"""
     try:
         with open(config_path, 'r', encoding='utf-8') as file:
@@ -60,8 +60,8 @@ def get_default_config():
             "retry_attempts": 3
         },
         "output": {
-            "chart_filename": "prediction_chart.png",
-            "html_filename": "index.html", 
+            "chart_filename": "frontend/prediction_chart.png",
+            "html_filename": "frontend/index.html", 
             "auto_commit": True,
             "web_server_port": 8000
         },
@@ -236,19 +236,48 @@ def make_prediction(df, predictor):
 
 
 def fetch_binance_data():
-    """Fetches K-line data from the Binance public API."""
+    """获取市场数据 - 优先使用缓存"""
+    
+    # 检查是否启用缓存
+    if CONFIG.get("data", {}).get("cache_enabled", False):
+        try:
+            from data_manager import data_manager
+            logger.info("使用数据缓存管理器获取数据...")
+            
+            # 获取缓存状态
+            status = data_manager.get_cache_status()
+            logger.info(f"缓存状态: {status['update_reason']}")
+            
+            # 获取数据
+            df = data_manager.get_data()
+            if df is not None:
+                logger.info(f"从缓存获取{len(df)}条数据，时间范围: {df['timestamps'].min()} 至 {df['timestamps'].max()}")
+                return df
+            else:
+                logger.warning("缓存获取失败，回退到直接API获取")
+                
+        except Exception as e:
+            logger.error(f"数据管理器错误: {e}")
+            logger.warning("回退到传统获取方式")
+    
+    # 传统获取方式 (后备方案)
+    return fetch_binance_data_legacy()
+
+
+def fetch_binance_data_legacy():
+    """传统的数据获取方式 (后备方案)"""
     symbol, interval = Config["SYMBOL"], Config["INTERVAL"]
     limit = Config["HIST_POINTS"] + Config["VOL_WINDOW"]
 
-    print(f"Fetching {limit} bars of {symbol} {interval} data from Binance...")
+    logger.info(f"从交易所获取{limit}条 {symbol} {interval} 数据...")
     
     try:
         # 方法1: 尝试使用 binance 库
         client = Client()
         klines = client.get_klines(symbol=symbol, interval=interval, limit=limit)
-        print("通过 binance 库获取数据成功")
+        logger.info("通过 binance 库获取数据成功")
     except Exception as e1:
-        print(f"方法1失败: {e1}")
+        logger.warning(f"方法1失败: {e1}")
         try:
             # 方法2: 使用 requests 直接调用API
             import requests
@@ -264,11 +293,11 @@ def fetch_binance_data():
             response = session.get(url, params=params, timeout=30)
             response.raise_for_status()
             klines = response.json()
-            print("通过直接API调用获取数据成功")
+            logger.info("通过直接API调用获取数据成功")
         except Exception as e2:
-            print(f"方法2也失败: {e2}")
+            logger.warning(f"方法2也失败: {e2}")
             # 方法3: 生成模拟数据用于测试
-            print("使用模拟数据进行测试...")
+            logger.info("使用模拟数据进行测试...")
             return generate_mock_data(limit)
 
     cols = ['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time',
@@ -283,7 +312,7 @@ def fetch_binance_data():
     for col in ['open', 'high', 'low', 'close', 'volume', 'amount']:
         df[col] = pd.to_numeric(df[col])
 
-    print("Data fetched successfully.")
+    logger.info("传统方式获取数据成功")
     return df
 
 
@@ -411,7 +440,7 @@ def create_plot(hist_df, close_preds_df, volume_preds_df):
         ax.tick_params(axis='x', rotation=30)
 
     fig.tight_layout()
-    chart_path = Config["REPO_PATH"] / 'prediction_chart.png'
+    chart_path = Config["REPO_PATH"] / 'frontend/prediction_chart.png'
     fig.savefig(chart_path, dpi=120)
     plt.close(fig)
     print(f"Chart saved to: {chart_path}")
@@ -423,7 +452,7 @@ def update_html(upside_prob, vol_amp_prob):
     This version uses a more robust lambda function for replacement to avoid formatting errors.
     """
     print("Updating index.html...")
-    html_path = Config["REPO_PATH"] / 'index.html'
+    html_path = Config["REPO_PATH"] / 'frontend/index.html'
     now_utc_str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
     upside_prob_str = f'{upside_prob:.1%}'
     vol_amp_prob_str = f'{vol_amp_prob:.1%}'
@@ -458,7 +487,7 @@ def git_commit_and_push(commit_message):
     print("Performing Git operations...")
     try:
         os.chdir(Config["REPO_PATH"])
-        subprocess.run(['git', 'add', 'prediction_chart.png', 'index.html'], check=True, capture_output=True, text=True)
+        subprocess.run(['git', 'add', 'frontend/prediction_chart.png', 'frontend/index.html'], check=True, capture_output=True, text=True)
         commit_result = subprocess.run(['git', 'commit', '-m', commit_message], check=True, capture_output=True, text=True)
         print(commit_result.stdout)
         push_result = subprocess.run(['git', 'push'], check=True, capture_output=True, text=True)

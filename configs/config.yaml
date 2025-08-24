@@ -19,6 +19,10 @@ data:
   history_window: 360    # 历史数据窗口 (小时数，建议: 180-720)
   forecast_horizon: 24   # 预测时间范围 (小时数)
   volatility_window: 24  # 波动性计算窗口 (小时数)
+  cache_enabled: true    # 启用数据缓存
+  cache_max_age_hours: 1 # 缓存数据最大年龄 (小时)
+  cache_dir: "data"      # 缓存目录
+  update_mode: "auto"    # 更新模式: "auto", "force", "cache_only"
 
 api:
   binance_base_url: "https://api.binance.com"  # 币安API基础URL

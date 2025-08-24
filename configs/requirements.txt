@@ -23,3 +23,13 @@ tqdm>=4.64.0
 
 # 时间和日期处理 (通常已内置)
 python-dateutil>=2.8.0
+
+# 数据优化相关
+pyarrow>=12.0.0        # Parquet文件支持
+fastparquet>=0.8.0     # 备用Parquet引擎
+
+# WebSocket实时数据 (可选)
+websockets>=11.0.0     # 实时数据流
+
+# 外部数据源 (可选)  
+yfinance>=0.2.0        # Yahoo Finance数据源
