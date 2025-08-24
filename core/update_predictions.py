@@ -312,7 +312,7 @@ def fetch_binance_data_legacy():
     df = df[['open_time', 'open', 'high', 'low', 'close', 'volume', 'quote_asset_volume']]
     df.rename(columns={'quote_asset_volume': 'amount', 'open_time': 'timestamps'}, inplace=True)
 
-    df['timestamps'] = pd.to_datetime(df['timestamps'], unit='ms')
+    df['timestamps'] = pd.to_datetime(df['timestamps'], unit='ms', utc=True)
     for col in ['open', 'high', 'low', 'close', 'volume', 'amount']:
         df[col] = pd.to_numeric(df[col])
 

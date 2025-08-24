@@ -53,7 +53,7 @@ class ExternalDataSources:
             df_data = []
             for i, (timestamp, price) in enumerate(prices):
                 # CoinGecko返回毫秒时间戳
-                dt = pd.to_datetime(timestamp, unit='ms')
+                dt = pd.to_datetime(timestamp, unit='ms', utc=True)
                 
                 # 简化的OHLC数据 (CoinGecko只提供价格点，我们模拟OHLC)
                 volume = volumes[i][1] if i < len(volumes) else 0
@@ -121,7 +121,7 @@ class ExternalDataSources:
             df['amount'] = df['volume'] * df['close']
             
             # 确保时间戳格式正确
-            df['timestamps'] = pd.to_datetime(df['timestamps'])
+            df['timestamps'] = pd.to_datetime(df['timestamps'], utc=True)
             
             logger.info(f"从Yahoo Finance获取{len(df)}条数据成功")
             return df[['timestamps', 'open', 'high', 'low', 'close', 'volume', 'amount']]
@@ -159,7 +159,7 @@ class ExternalDataSources:
             df_data = []
             for item in data['Data']['Data']:
                 df_data.append({
-                    'timestamps': pd.to_datetime(item['time'], unit='s'),
+                    'timestamps': pd.to_datetime(item['time'], unit='s', utc=True),
                     'open': item['open'],
                     'high': item['high'],
                     'low': item['low'],

@@ -56,7 +56,7 @@ class RealtimeDataStream:
                 # 只处理已完成的K线
                 if kline['x']:  # x=true表示K线已关闭
                     kline_data = {
-                        'timestamps': pd.to_datetime(kline['t'], unit='ms'),
+                        'timestamps': pd.to_datetime(kline['t'], unit='ms', utc=True),
                         'open': float(kline['o']),
                         'high': float(kline['h']),
                         'low': float(kline['l']),

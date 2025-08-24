@@ -81,6 +81,12 @@ class DataManager:
         latest_time = cache_info["latest_time"]
         if isinstance(latest_time, str):
             latest_time = pd.to_datetime(latest_time)
+        
+        # 确保时间戳有时区信息
+        if latest_time.tz is None:
+            latest_time = latest_time.tz_localize('UTC')
+        elif latest_time.tz != timezone.utc:
+            latest_time = latest_time.tz_convert('UTC')
             
         hours_old = (datetime.now(timezone.utc) - latest_time).total_seconds() / 3600
         
@@ -93,8 +99,8 @@ class DataManager:
         """从交易所获取新数据"""
         logger.info(f"从交易所获取{limit}条最新数据...")
         
+        # 尝试方法1: Binance API
         try:
-            # 方法1: 尝试Binance API
             client = Client()
             klines = client.get_klines(
                 symbol=self.symbol, 
@@ -102,32 +108,48 @@ class DataManager:
                 limit=limit
             )
             logger.info("通过Binance API获取数据成功")
+            df = self._convert_klines_to_df(klines)
+            logger.info(f"获取到{len(df)}条数据，时间范围: {df['timestamps'].min()} 至 {df['timestamps'].max()}")
+            return df
             
         except Exception as e1:
             logger.warning(f"Binance API失败: {e1}")
-            try:
-                # 方法2: 直接REST API
-                import requests
-                url = "https://api.binance.com/api/v3/klines"
-                params = {
-                    'symbol': self.symbol,
-                    'interval': self.timeframe,
-                    'limit': limit
-                }
-                response = requests.get(url, params=params, timeout=30)
-                response.raise_for_status()
-                klines = response.json()
-                logger.info("通过REST API获取数据成功")
-                
-            except Exception as e2:
-                logger.error(f"所有API方法都失败: {e1}, {e2}")
-                return None
         
-        # 转换数据格式
-        df = self._convert_klines_to_df(klines)
-        logger.info(f"获取到{len(df)}条数据，时间范围: {df['timestamps'].min()} 至 {df['timestamps'].max()}")
+        # 尝试方法2: 直接REST API
+        try:
+            import requests
+            url = "https://api.binance.com/api/v3/klines"
+            params = {
+                'symbol': self.symbol,
+                'interval': self.timeframe,
+                'limit': limit
+            }
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            klines = response.json()
+            logger.info("通过REST API获取数据成功")
+            df = self._convert_klines_to_df(klines)
+            logger.info(f"获取到{len(df)}条数据，时间范围: {df['timestamps'].min()} 至 {df['timestamps'].max()}")
+            return df
+            
+        except Exception as e2:
+            logger.warning(f"REST API也失败: {e2}")
         
-        return df
+        # 尝试方法3: 外部数据源
+        logger.info("尝试使用外部数据源...")
+        try:
+            from external_data_sources import MultiSourceDataManager
+            external_manager = MultiSourceDataManager()
+            days = min(42, limit // 24)  # 根据limit估算天数
+            df = external_manager.get_data_with_fallback(days=days)
+            if df is not None:
+                logger.info(f"外部数据源获取成功: {len(df)}条数据")
+                return df
+        except Exception as e3:
+            logger.error(f"外部数据源也失败: {e3}")
+        
+        logger.error("所有数据获取方法都失败")
+        return None
     
     def _convert_klines_to_df(self, klines):
         """转换K线数据为DataFrame"""
@@ -139,7 +161,7 @@ class DataManager:
         df = df[['open_time', 'open', 'high', 'low', 'close', 'volume', 'quote_asset_volume']]
         df.rename(columns={'quote_asset_volume': 'amount', 'open_time': 'timestamps'}, inplace=True)
         
-        df['timestamps'] = pd.to_datetime(df['timestamps'], unit='ms')
+        df['timestamps'] = pd.to_datetime(df['timestamps'], unit='ms', utc=True)
         for col in ['open', 'high', 'low', 'close', 'volume', 'amount']:
             df[col] = pd.to_numeric(df[col])
             
