@@ -1,0 +1,25 @@
+# Kronos Live Forecast - Python Dependencies
+# 安装命令: pip3 install -r requirements.txt
+
+# 核心机器学习和数据处理
+torch>=2.0.0
+pandas>=2.0.0
+numpy>=1.20.0
+safetensors>=0.3.0
+
+# 数据可视化
+matplotlib>=3.7.0
+
+# API和网络请求  
+python-binance>=1.0.0
+requests>=2.28.0
+
+# HuggingFace生态
+huggingface_hub>=0.15.0
+
+# 配置文件和工具
+pyyaml>=6.0
+tqdm>=4.64.0
+
+# 时间和日期处理 (通常已内置)
+python-dateutil>=2.8.0

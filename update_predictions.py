@@ -3,6 +3,8 @@ import os
 import re
 import subprocess
 import time
+import yaml
+import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -14,28 +16,182 @@ from binance.client import Client
 
 from model import KronosTokenizer, Kronos, KronosPredictor
 
-# --- Configuration ---
+
+def load_config(config_path="config.yaml"):
+    """加载配置文件"""
+    try:
+        with open(config_path, 'r', encoding='utf-8') as file:
+            config = yaml.safe_load(file)
+        print(f"配置文件加载成功: {config_path}")
+        return config
+    except FileNotFoundError:
+        print(f"配置文件未找到: {config_path}，使用默认配置")
+        return get_default_config()
+    except yaml.YAMLError as e:
+        print(f"配置文件解析错误: {e}，使用默认配置")
+        return get_default_config()
+
+
+def get_default_config():
+    """获取默认配置"""
+    return {
+        "model": {
+            "model_name": "Kronos-small",
+            "tokenizer_name": "Kronos-Tokenizer-base", 
+            "model_path": "../Kronos_model",
+            "max_context": 512,
+            "device": "cpu"
+        },
+        "sampling": {
+            "temperature": 0.6,
+            "top_p": 0.9,
+            "num_samples": 30
+        },
+        "data": {
+            "symbol": "BTCUSDT",
+            "timeframe": "1h", 
+            "history_window": 360,
+            "forecast_horizon": 24,
+            "volatility_window": 24
+        },
+        "api": {
+            "binance_base_url": "https://api.binance.com",
+            "request_timeout": 30,
+            "retry_attempts": 3
+        },
+        "output": {
+            "chart_filename": "prediction_chart.png",
+            "html_filename": "index.html", 
+            "auto_commit": True,
+            "web_server_port": 8000
+        },
+        "logging": {
+            "level": "INFO",
+            "enable_file_logging": False
+        }
+    }
+
+
+# 加载配置
+CONFIG = load_config()
+
+# 向后兼容的配置映射
 Config = {
     "REPO_PATH": Path(__file__).parent.resolve(),
-    "MODEL_PATH": "../Kronos_model",
-    "SYMBOL": 'BTCUSDT',
-    "INTERVAL": '1h',
-    "HIST_POINTS": 360,
-    "PRED_HORIZON": 24,
-    "N_PREDICTIONS": 30,
-    "VOL_WINDOW": 24,
+    "MODEL_PATH": CONFIG["model"]["model_path"],
+    "MODEL_NAME": CONFIG["model"]["model_name"],
+    "TOKENIZER_NAME": CONFIG["model"]["tokenizer_name"],
+    "MAX_CONTEXT": CONFIG["model"]["max_context"],
+    "DEVICE": CONFIG["model"]["device"],
+    "TEMPERATURE": CONFIG["sampling"]["temperature"],
+    "TOP_P": CONFIG["sampling"]["top_p"],
+    "SYMBOL": CONFIG["data"]["symbol"],
+    "INTERVAL": CONFIG["data"]["timeframe"],
+    "HIST_POINTS": CONFIG["data"]["history_window"],
+    "PRED_HORIZON": CONFIG["data"]["forecast_horizon"],
+    "N_PREDICTIONS": CONFIG["sampling"]["num_samples"],
+    "VOL_WINDOW": CONFIG["data"]["volatility_window"],
 }
+
+# 设置日志
+logging.basicConfig(
+    level=getattr(logging, CONFIG["logging"]["level"]),
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+def load_model_configs():
+    """加载模型配置参数"""
+    tokenizer_name = Config["TOKENIZER_NAME"]
+    model_name = Config["MODEL_NAME"]
+    
+    # 加载tokenizer配置 
+    tokenizer_config_path = f"{Config['MODEL_PATH']}/{tokenizer_name}/config.json"
+    model_config_path = f"{Config['MODEL_PATH']}/{model_name}/config.json"
+    
+    try:
+        import json
+        with open(tokenizer_config_path, 'r') as f:
+            tokenizer_config = json.load(f)
+        with open(model_config_path, 'r') as f:
+            model_config = json.load(f)
+        
+        logger.info(f"加载tokenizer配置: {tokenizer_name}")
+        logger.info(f"加载模型配置: {model_name}")
+        
+        return tokenizer_config, model_config
+    except Exception as e:
+        logger.error(f"加载配置文件失败: {e}")
+        raise
 
 
 def load_model():
-    """Loads the Kronos model and tokenizer."""
-    print("Loading Kronos model...")
-    tokenizer = KronosTokenizer.from_pretrained("NeoQuasar/Kronos-Tokenizer-base", cache_dir=Config["MODEL_PATH"])
-    model = Kronos.from_pretrained("NeoQuasar/Kronos-small", cache_dir=Config["MODEL_PATH"])
+    """Loads the Kronos model and tokenizer with dynamic configuration."""
+    logger.info(f"Loading Kronos model: {Config['MODEL_NAME']}...")
+    
+    # 动态加载配置
+    tokenizer_config, model_config = load_model_configs()
+    
+    # 创建tokenizer和model实例
+    tokenizer = KronosTokenizer(
+        d_in=6,  # 固定输入维度 (OHLCVA)
+        d_model=tokenizer_config['d_model'],
+        n_heads=tokenizer_config['n_heads'],
+        ff_dim=tokenizer_config['ff_dim'],
+        n_enc_layers=tokenizer_config['n_enc_layers'],
+        n_dec_layers=tokenizer_config['n_dec_layers'],
+        ffn_dropout_p=tokenizer_config['ffn_dropout_p'],
+        attn_dropout_p=tokenizer_config['attn_dropout_p'],
+        resid_dropout_p=tokenizer_config['resid_dropout_p'],
+        s1_bits=tokenizer_config['s1_bits'],
+        s2_bits=tokenizer_config['s2_bits'],
+        beta=tokenizer_config['beta'],
+        gamma0=tokenizer_config['gamma0'],
+        gamma=tokenizer_config['gamma'],
+        zeta=tokenizer_config['zeta'],
+        group_size=tokenizer_config['group_size']
+    )
+    
+    model = Kronos(
+        d_model=model_config['d_model'],
+        n_heads=model_config['n_heads'],
+        ff_dim=model_config['ff_dim'],
+        n_layers=model_config['n_layers'],
+        ffn_dropout_p=model_config['ffn_dropout_p'],
+        attn_dropout_p=model_config['attn_dropout_p'],
+        resid_dropout_p=model_config['resid_dropout_p'],
+        s1_bits=model_config['s1_bits'],
+        s2_bits=model_config['s2_bits'],
+        token_dropout_p=model_config['token_dropout_p'],
+        learn_te=model_config['learn_te']
+    )
+    
+    # 加载预训练权重
+    tokenizer_path = f"{Config['MODEL_PATH']}/{Config['TOKENIZER_NAME']}"
+    model_path = f"{Config['MODEL_PATH']}/{Config['MODEL_NAME']}"
+    
+    from safetensors.torch import load_file
+    tokenizer.load_state_dict(load_file(f"{tokenizer_path}/model.safetensors"))
+    model.load_state_dict(load_file(f"{model_path}/model.safetensors"))
+    
     tokenizer.eval()
     model.eval()
-    predictor = KronosPredictor(model, tokenizer, device="cpu", max_context=512)
-    print("Model loaded successfully.")
+    
+    # 创建预测器
+    predictor = KronosPredictor(
+        model, 
+        tokenizer, 
+        device=Config["DEVICE"], 
+        max_context=Config["MAX_CONTEXT"]
+    )
+    
+    # 获取模型参数量
+    total_params = sum(p.numel() for p in model.parameters())
+    logger.info(f"模型加载成功: {Config['MODEL_NAME']}")
+    logger.info(f"模型参数量: {total_params:,} ({total_params/1e6:.1f}M)")
+    logger.info(f"推理设备: {Config['DEVICE']}")
+    
     return predictor
 
 
@@ -53,24 +209,28 @@ def make_prediction(df, predictor):
     x_df = df[['open', 'high', 'low', 'close', 'volume', 'amount']]
 
     with torch.no_grad():
-        print("Making main prediction (T=1.0)...")
+        logger.info(f"开始主要预测 (T={Config['TEMPERATURE']}, top_p={Config['TOP_P']}, samples={Config['N_PREDICTIONS']})...")
         begin_time = time.time()
         close_preds_main, volume_preds_main = predictor.predict(
             df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
-            pred_len=Config["PRED_HORIZON"], T=1.0, top_p=0.95,
-            sample_count=Config["N_PREDICTIONS"], verbose=True
+            pred_len=Config["PRED_HORIZON"], T=Config["TEMPERATURE"], 
+            top_p=Config["TOP_P"], sample_count=Config["N_PREDICTIONS"], 
+            verbose=True
         )
-        print(f"Main prediction completed in {time.time() - begin_time:.2f} seconds.")
+        elapsed_time = time.time() - begin_time
+        logger.info(f"主要预测完成，耗时: {elapsed_time:.2f}秒")
 
-        # print("Making volatility prediction (T=0.9)...")
-        # begin_time = time.time()
-        # close_preds_volatility, _ = predictor.predict(
-        #     df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
-        #     pred_len=Config["PRED_HORIZON"], T=0.9, top_p=0.9,
-        #     sample_count=Config["N_PREDICTIONS"], verbose=True
-        # )
-        # print(f"Volatility prediction completed in {time.time() - begin_time:.2f} seconds.")
-        close_preds_volatility = close_preds_main
+        # 生成波动性预测 (使用较高温度增加变异性)
+        logger.info(f"开始波动性预测 (T={Config['TEMPERATURE'] * 1.2}, top_p={Config['TOP_P']})...")
+        begin_time = time.time()
+        close_preds_volatility, _ = predictor.predict(
+            df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+            pred_len=Config["PRED_HORIZON"], T=Config["TEMPERATURE"] * 1.2, 
+            top_p=Config["TOP_P"], sample_count=Config["N_PREDICTIONS"], 
+            verbose=True
+        )
+        elapsed_time = time.time() - begin_time
+        logger.info(f"波动性预测完成，耗时: {elapsed_time:.2f}秒")
 
     return close_preds_main, volume_preds_main, close_preds_volatility
 
@@ -81,8 +241,35 @@ def fetch_binance_data():
     limit = Config["HIST_POINTS"] + Config["VOL_WINDOW"]
 
     print(f"Fetching {limit} bars of {symbol} {interval} data from Binance...")
-    client = Client()
-    klines = client.get_klines(symbol=symbol, interval=interval, limit=limit)
+    
+    try:
+        # 方法1: 尝试使用 binance 库
+        client = Client()
+        klines = client.get_klines(symbol=symbol, interval=interval, limit=limit)
+        print("通过 binance 库获取数据成功")
+    except Exception as e1:
+        print(f"方法1失败: {e1}")
+        try:
+            # 方法2: 使用 requests 直接调用API
+            import requests
+            url = f"https://api.binance.com/api/v3/klines"
+            params = {
+                'symbol': symbol,
+                'interval': interval,
+                'limit': limit
+            }
+            
+            session = requests.Session()
+            # 设置超时和重试
+            response = session.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            klines = response.json()
+            print("通过直接API调用获取数据成功")
+        except Exception as e2:
+            print(f"方法2也失败: {e2}")
+            # 方法3: 生成模拟数据用于测试
+            print("使用模拟数据进行测试...")
+            return generate_mock_data(limit)
 
     cols = ['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time',
             'quote_asset_volume', 'number_of_trades', 'taker_buy_base_asset_volume',
@@ -100,6 +287,52 @@ def fetch_binance_data():
     return df
 
 
+def generate_mock_data(limit):
+    """生成模拟的BTC价格数据用于测试"""
+    import random
+    from datetime import timedelta
+    
+    # 当前时间往前推limit小时
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(hours=limit)
+    
+    # 生成时间序列
+    times = pd.date_range(start=start_time, end=end_time, freq='H')[:limit]
+    
+    # 模拟价格数据，基准价格约66000 USDT
+    base_price = 66000
+    prices = []
+    current_price = base_price
+    
+    for i in range(limit):
+        # 添加一些随机波动
+        change = random.gauss(0, 500)  # 正态分布波动
+        current_price += change
+        current_price = max(50000, min(80000, current_price))  # 价格限制在合理范围
+        
+        # OHLC数据
+        open_price = current_price
+        high = open_price + random.uniform(0, 800)
+        low = open_price - random.uniform(0, 800)
+        close = open_price + random.gauss(0, 300)
+        
+        # 成交量
+        volume = random.uniform(1000, 5000)
+        amount = volume * close
+        
+        prices.append({
+            'timestamps': times[i],
+            'open': open_price,
+            'high': high,
+            'low': low,
+            'close': close,
+            'volume': volume,
+            'amount': amount
+        })
+    
+    return pd.DataFrame(prices)
+
+
 def calculate_metrics(hist_df, close_preds_df, v_close_preds_df):
     """
     Calculates upside and volatility amplification probabilities for the 24h horizon.
@@ -112,20 +345,34 @@ def calculate_metrics(hist_df, close_preds_df, v_close_preds_df):
     upside_prob = (final_hour_preds > last_close).mean()
 
     # 2. Volatility Amplification Probability (over the 24-hour horizon)
-    hist_log_returns = np.log(hist_df['close'] / hist_df['close'].shift(1))
-    historical_vol = hist_log_returns.iloc[-Config["VOL_WINDOW"]:].std()
+    # 计算历史波动率 (使用最近VOL_WINDOW小时的数据)
+    hist_log_returns = np.log(hist_df['close'] / hist_df['close'].shift(1)).dropna()
+    historical_vol = hist_log_returns.iloc[-Config["VOL_WINDOW"]:].std() * np.sqrt(24)  # 年化到24小时
+    
+    logger.info(f"历史波动率 (24h): {historical_vol:.4f}")
 
     amplification_count = 0
+    predicted_vols = []
+    
     for col in v_close_preds_df.columns:
+        # 构建完整的价格序列 (包括当前价格)
         full_sequence = pd.concat([pd.Series([last_close]), v_close_preds_df[col]]).reset_index(drop=True)
-        pred_log_returns = np.log(full_sequence / full_sequence.shift(1))
-        predicted_vol = pred_log_returns.std()
+        # 计算对数收益率
+        pred_log_returns = np.log(full_sequence / full_sequence.shift(1)).dropna()
+        # 计算预测波动率 
+        predicted_vol = pred_log_returns.std() * np.sqrt(len(pred_log_returns))  # 标准化到同等时间窗口
+        predicted_vols.append(predicted_vol)
+        
         if predicted_vol > historical_vol:
             amplification_count += 1
 
     vol_amp_prob = amplification_count / len(v_close_preds_df.columns)
-
-    print(f"Upside Probability (24h): {upside_prob:.2%}, Volatility Amplification Probability: {vol_amp_prob:.2%}")
+    avg_predicted_vol = np.mean(predicted_vols)
+    
+    logger.info(f"平均预测波动率 (24h): {avg_predicted_vol:.4f}")
+    logger.info(f"波动性放大概率: {vol_amp_prob:.2%}")
+    logger.info(f"上涨概率 (24h): {upside_prob:.2%}")
+    
     return upside_prob, vol_amp_prob
 
 

@@ -1,0 +1,36 @@
+# Kronos Live Forecast Configuration
+# 配置文件：设置模型参数、采样参数和数据源
+
+model:
+  model_name: "Kronos-small"  # 可选: "Kronos-small" (24.7M) 或 "Kronos-base" (102.3M)
+  tokenizer_name: "Kronos-Tokenizer-base"
+  model_path: "../Kronos_model"  # 外部模型存储路径
+  max_context: 512
+  device: "cpu"  # 可选: "cpu" 或 "cuda"
+
+sampling:
+  temperature: 0.6  # 温度参数，控制预测随机性 (0.1-1.0)
+  top_p: 0.9       # Top-p采样参数 (0.1-1.0)  
+  num_samples: 30  # 蒙特卡洛采样次数 (建议: 10-50)
+
+data:
+  symbol: "BTCUSDT"      # 交易对符号
+  timeframe: "1h"        # 时间间隔 (1h, 4h, 1d等)
+  history_window: 360    # 历史数据窗口 (小时数，建议: 180-720)
+  forecast_horizon: 24   # 预测时间范围 (小时数)
+  volatility_window: 24  # 波动性计算窗口 (小时数)
+
+api:
+  binance_base_url: "https://api.binance.com"  # 币安API基础URL
+  request_timeout: 30     # 请求超时时间 (秒)
+  retry_attempts: 3       # 重试次数
+
+output:
+  chart_filename: "prediction_chart.png"
+  html_filename: "index.html"
+  auto_commit: true       # 是否自动提交Git更新
+  web_server_port: 8000   # 本地Web服务器端口
+
+logging:
+  level: "INFO"           # 日志级别: DEBUG, INFO, WARNING, ERROR
+  enable_file_logging: false  # 是否启用文件日志
