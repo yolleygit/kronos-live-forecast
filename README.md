@@ -100,6 +100,111 @@ python tools/download_long_history.py
 python tools/data_validator.py
 ```
 
+## 🔄 详细运行流程
+
+### 单次运行模式 (推荐用于开发和测试)
+```bash
+python run_single.py
+```
+
+**完整流程时间分析**:
+1. **配置加载** (0.1秒): 读取`configs/config.yaml`
+2. **模型加载** (0.4秒): 加载24.7M参数的Kronos-small模型
+3. **数据获取** (0.0秒): 智能缓存，有缓存时跳过网络请求  
+4. **主要预测** (60秒): 24小时预测，30次蒙特卡洛采样
+5. **波动性预测** (60秒): 计算上涨概率和波动性放大
+6. **图表生成** (3秒): 生成`frontend/prediction_chart.png`
+7. **HTML更新** (0.1秒): 更新`frontend/index.html`
+8. **Git提交** (0.5秒): 自动提交更新
+
+**总耗时**: 约124秒 (如有缓存，数据获取几乎瞬时)
+
+### 持续运行模式
+```bash
+python run_prediction.py
+```
+
+**调度机制**:
+- 每小时XX:00:05自动触发预测
+- 内置5分钟重试机制
+- 自动内存清理和垃圾回收
+- Ctrl+C优雅退出
+
+### 数据管理优化
+
+**智能缓存策略**:
+```bash
+# 首次运行或缓存过期
+数据获取: 3-8秒 (CCXT多交易所)
+
+# 后续运行 (缓存命中)
+数据获取: 0.0秒 (直接使用本地缓存)
+```
+
+**数据源优先级**:
+1. **本地缓存** (Parquet格式，毫秒级访问)
+2. **CCXT交易所API** (Binance → OKX → Bybit → Gate → Huobi)
+3. **外部数据源** (CoinGecko → Yahoo Finance → 模拟数据)
+
+## 🚀 性能优化亮点
+
+- **延迟初始化**: CCXT数据源按需连接，避免70秒预初始化
+- **智能缓存**: 缓存命中率90%+，大幅减少网络请求
+- **文件路径修复**: 解决`frontend/`目录访问问题
+- **内存管理**: 自动垃圾回收，支持长期运行
+
+## 🔧 故障排除
+
+### 常见问题
+
+**Q: 运行时出现文件路径错误**
+```bash
+FileNotFoundError: [Errno 2] No such file or directory: '.../frontend/prediction_chart.png'
+```
+A: 已修复，确保运行最新版本。项目根目录必须包含`frontend/`文件夹。
+
+**Q: 数据获取缓慢 (>60秒)**  
+A: 首次运行会初始化交易所连接，后续运行使用缓存几乎瞬时。可通过以下优化：
+```bash
+# 检查缓存状态
+python tools/view_data.py --both
+
+# 强制使用缓存模式
+# 在config.yaml中设置: update_mode: "cache_only"
+```
+
+**Q: 模型加载失败**
+```bash
+FileNotFoundError: ../Kronos_model
+```
+A: 确保Kronos模型在正确路径。检查`configs/config.yaml`中的`model_path`设置。
+
+**Q: 预测结果异常 (如100%上涨概率)**  
+A: 这可能是正常的模型输出，特别是在特定市场条件下。可以：
+- 调整采样参数 (`temperature`, `num_samples`)
+- 切换到更大的Kronos-base模型
+- 检查输入数据质量
+
+### 性能优化建议
+
+**开发阶段**:
+```bash
+# 减少采样次数加快测试
+# config.yaml: num_samples: 10 (默认30)
+
+# 禁用Git自动提交
+# config.yaml: auto_commit: false
+```
+
+**生产运行**:
+```bash
+# 使用更大模型提高精度
+# config.yaml: model_name: "Kronos-base" 
+
+# 启用全部功能
+# config.yaml: num_samples: 30, auto_commit: true
+```
+
 ## 📝 更新日志
 
 - ✅ 修复pandas FutureWarning警告
@@ -107,3 +212,5 @@ python tools/data_validator.py
 - ✅ 创建统一启动脚本，简化使用流程
 - ✅ 实现智能数据缓存系统
 - ✅ 支持多模型配置和动态切换
+- ✅ CCXT数据源延迟初始化优化
+- ✅ 修复文件路径错误，确保图表正常生成

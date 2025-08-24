@@ -96,10 +96,10 @@ class DataManager:
         return False, "缓存数据充足且新鲜"
     
     def fetch_fresh_data(self, limit=1000):
-        """从交易所获取新数据"""
-        logger.info(f"从交易所获取{limit}条最新数据...")
+        """优化：优先使用CCXT统一交易所API"""
+        logger.info(f"获取{limit}条最新数据...")
         
-        # 尝试方法1: CCXT统一交易所API (主推方案)
+        # 主要方案: CCXT统一交易所API
         try:
             from ccxt_data_source import CCXTDataSource
             ccxt_source = CCXTDataSource()
@@ -125,44 +125,8 @@ class DataManager:
         except Exception as e1:
             logger.warning(f"CCXT方法失败: {e1}")
         
-        # 尝试方法2: 传统Binance API  
-        try:
-            client = Client()
-            klines = client.get_klines(
-                symbol=self.symbol, 
-                interval=self.timeframe, 
-                limit=limit
-            )
-            logger.info("通过Binance API获取数据成功")
-            df = self._convert_klines_to_df(klines)
-            logger.info(f"获取到{len(df)}条数据，时间范围: {df['timestamps'].min()} 至 {df['timestamps'].max()}")
-            return df
-            
-        except Exception as e2:
-            logger.warning(f"Binance API失败: {e2}")
-        
-        # 尝试方法3: 直接REST API
-        try:
-            import requests
-            url = "https://api.binance.com/api/v3/klines"
-            params = {
-                'symbol': self.symbol,
-                'interval': self.timeframe,
-                'limit': limit
-            }
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            klines = response.json()
-            logger.info("通过REST API获取数据成功")
-            df = self._convert_klines_to_df(klines)
-            logger.info(f"获取到{len(df)}条数据，时间范围: {df['timestamps'].min()} 至 {df['timestamps'].max()}")
-            return df
-            
-        except Exception as e3:
-            logger.warning(f"REST API也失败: {e3}")
-        
-        # 尝试方法4: 外部数据源
-        logger.info("尝试使用外部数据源...")
+        # 备用方案: 外部数据源降级策略
+        logger.info("启用多数据源降级策略...")
         try:
             from external_data_sources import MultiSourceDataManager
             external_manager = MultiSourceDataManager()
@@ -171,8 +135,8 @@ class DataManager:
             if df is not None:
                 logger.info(f"外部数据源获取成功: {len(df)}条数据")
                 return df
-        except Exception as e4:
-            logger.error(f"外部数据源也失败: {e4}")
+        except Exception as e2:
+            logger.error(f"外部数据源也失败: {e2}")
         
         logger.error("所有数据获取方法都失败")
         return None
@@ -243,20 +207,42 @@ class DataManager:
             
             return True
     
-    def get_data(self, hours=None):
-        """获取指定小时数的历史数据"""
+    def get_data(self, hours=None, force_update=False):
+        """
+        智能获取历史数据
+        
+        Args:
+            hours: 需要的数据小时数
+            force_update: 是否强制更新
+        """
         if hours is None:
             hours = self.required_hours
             
-        # 检查是否需要更新
-        need_update, reason = self.need_update()
-        if need_update:
-            logger.info(f"缓存需要更新: {reason}")
-            success = self.update_cache()
-            if not success:
-                logger.warning("数据更新失败，尝试使用旧缓存...")
+        # 智能缓存策略
+        cache_info = self.get_cache_info()
         
-        # 从缓存读取数据
+        # 1. 如果有足够的新鲜缓存数据，直接使用
+        if not force_update and cache_info["status"] == "available":
+            need_update, reason = self.need_update()
+            
+            if not need_update and cache_info["count"] >= hours:
+                logger.info("✅ 使用本地缓存数据，跳过网络请求")
+                try:
+                    df = pd.read_parquet(self.cache_file)
+                    result_df = df.tail(hours).copy()
+                    logger.info(f"从缓存获取{len(result_df)}小时数据成功")
+                    return result_df
+                except Exception as e:
+                    logger.error(f"缓存读取失败: {e}")
+                    # 继续尝试更新
+        
+        # 2. 需要更新数据时才连接网络
+        logger.info("缓存不足或过期，需要获取新数据...")
+        success = self.update_cache(force_full_update=force_update)
+        if not success:
+            logger.warning("数据更新失败，尝试使用现有缓存...")
+        
+        # 3. 从缓存读取数据
         if not self.cache_file.exists():
             logger.error("没有可用的缓存数据")
             return None
@@ -264,13 +250,12 @@ class DataManager:
         try:
             df = pd.read_parquet(self.cache_file)
             
-            # 返回最新的N小时数据
             if len(df) >= hours:
                 result_df = df.tail(hours).copy()
                 logger.info(f"从缓存获取{len(result_df)}小时数据成功")
                 return result_df
             else:
-                logger.warning(f"缓存数据不足，需要{hours}小时，只有{len(df)}小时")
+                logger.warning(f"数据不足，需要{hours}小时，只有{len(df)}小时")
                 return df
                 
         except Exception as e:
@@ -285,6 +270,7 @@ class DataManager:
     def _export_to_csv(self, df):
         """导出数据为CSV格式"""
         try:
+            import sys
             sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
             from csv_exporter import CSVExporter
             

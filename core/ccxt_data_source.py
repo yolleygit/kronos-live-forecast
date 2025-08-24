@@ -19,12 +19,12 @@ class CCXTDataSource:
         self._init_exchanges()
     
     def _init_exchanges(self):
-        """初始化支持的交易所"""
+        """优化：延迟初始化交易所配置"""
         try:
             import ccxt
             
-            # 按优先级排序的交易所列表
-            exchange_configs = [
+            # 按优先级排序的交易所配置（不立即初始化）
+            self.exchange_configs = [
                 {'name': 'binance', 'class': ccxt.binance, 'rateLimit': 1200},
                 {'name': 'okx', 'class': ccxt.okx, 'rateLimit': 2000}, 
                 {'name': 'bybit', 'class': ccxt.bybit, 'rateLimit': 1000},
@@ -32,41 +32,66 @@ class CCXTDataSource:
                 {'name': 'huobi', 'class': ccxt.huobi, 'rateLimit': 2000}
             ]
             
-            for config in exchange_configs:
-                try:
-                    exchange = config['class']({
-                        'rateLimit': config['rateLimit'],
-                        'timeout': 30000,
-                        'enableRateLimit': True,
-                    })
-                    
-                    # 简单测试连通性
-                    if hasattr(exchange, 'load_markets'):
-                        exchange.load_markets()
-                    
-                    self.exchanges.append({
-                        'name': config['name'],
-                        'instance': exchange,
-                        'status': 'available'
-                    })
-                    logger.info(f"✅ {config['name']} 交易所初始化成功")
-                    
-                except Exception as e:
-                    logger.warning(f"⚠️ {config['name']} 交易所初始化失败: {e}")
+            # 延迟初始化 - 只在需要时才建立连接
+            self.exchanges = []  # 实际初始化的交易所
+            self._initialized_exchanges = {}  # 缓存已初始化的交易所
+            
+            logger.info(f"CCXT数据源配置完成，支持{len(self.exchange_configs)}个交易所")
                     
         except ImportError:
             logger.error("CCXT库未安装，请运行: pip install ccxt")
-            
-        logger.info(f"CCXT数据源初始化完成，可用交易所: {len(self.exchanges)}")
+            self.exchange_configs = []
     
+    def _lazy_init_exchange(self, config):
+        """延迟初始化单个交易所"""
+        name = config['name']
+        
+        # 如果已经初始化过，直接返回
+        if name in self._initialized_exchanges:
+            return self._initialized_exchanges[name]
+        
+        try:
+            logger.info(f"🔄 初始化 {name} 交易所...")
+            exchange = config['class']({
+                'rateLimit': config['rateLimit'],
+                'timeout': 15000,  # 减少超时时间
+                'enableRateLimit': True,
+            })
+            
+            # 跳过市场信息下载，直接测试获取数据
+            # exchange.load_markets()  # 这是最耗时的操作，跳过！
+            
+            exchange_info = {
+                'name': name,
+                'instance': exchange,
+                'status': 'available',
+                'config': config
+            }
+            
+            # 缓存初始化结果
+            self._initialized_exchanges[name] = exchange_info
+            logger.info(f"✅ {name} 交易所初始化成功")
+            return exchange_info
+            
+        except Exception as e:
+            logger.warning(f"⚠️ {name} 交易所初始化失败: {e}")
+            error_info = {
+                'name': name,
+                'instance': None,
+                'status': 'error',
+                'error': str(e)
+            }
+            self._initialized_exchanges[name] = error_info
+            return error_info
+
     def get_available_exchanges(self) -> List[str]:
         """获取可用的交易所列表"""
-        return [ex['name'] for ex in self.exchanges if ex['status'] == 'available']
+        return [config['name'] for config in self.exchange_configs]
     
     def fetch_ohlcv_data(self, symbol='BTC/USDT', timeframe='1h', limit=1000, 
                         exchange_name=None) -> Optional[pd.DataFrame]:
         """
-        获取OHLCV数据
+        优化：按需初始化交易所并获取OHLCV数据
         
         Args:
             symbol: 交易对符号 (如 'BTC/USDT')
@@ -74,26 +99,33 @@ class CCXTDataSource:
             limit: 数据条数
             exchange_name: 指定交易所名称，None则按优先级尝试
         """
-        if not self.exchanges:
-            logger.error("没有可用的交易所")
+        if not self.exchange_configs:
+            logger.error("没有配置的交易所")
             return None
             
-        # 确定要使用的交易所列表
+        # 确定要尝试的交易所配置
         if exchange_name:
-            target_exchanges = [ex for ex in self.exchanges 
-                              if ex['name'] == exchange_name and ex['status'] == 'available']
-            if not target_exchanges:
-                logger.error(f"指定的交易所 {exchange_name} 不可用")
+            target_configs = [config for config in self.exchange_configs 
+                            if config['name'] == exchange_name]
+            if not target_configs:
+                logger.error(f"未找到交易所配置: {exchange_name}")
                 return None
         else:
-            target_exchanges = [ex for ex in self.exchanges if ex['status'] == 'available']
+            target_configs = self.exchange_configs  # 按优先级顺序
         
-        # 按优先级尝试获取数据
-        for exchange_info in target_exchanges:
+        # 按优先级尝试获取数据（延迟初始化）
+        for config in target_configs:
             try:
-                exchange = exchange_info['instance']
-                name = exchange_info['name']
+                name = config['name']
                 
+                # 延迟初始化交易所
+                exchange_info = self._lazy_init_exchange(config)
+                
+                if exchange_info['status'] != 'available':
+                    logger.info(f"⏭️ 跳过不可用的交易所: {name}")
+                    continue
+                
+                exchange = exchange_info['instance']
                 logger.info(f"尝试从 {name} 获取 {symbol} {timeframe} 数据 (limit={limit})...")
                 
                 # 获取OHLCV数据
@@ -126,9 +158,10 @@ class CCXTDataSource:
                 return df
                 
             except Exception as e:
-                logger.warning(f"❌ {exchange_info['name']} 获取失败: {e}")
+                logger.warning(f"❌ {config['name']} 获取失败: {e}")
                 # 标记该交易所暂时不可用
-                exchange_info['status'] = 'error'
+                if config['name'] in self._initialized_exchanges:
+                    self._initialized_exchanges[config['name']]['status'] = 'error'
                 continue
         
         logger.error("所有CCXT交易所都获取失败")
@@ -140,26 +173,33 @@ class CCXTDataSource:
         return self.fetch_ohlcv_data(symbol, timeframe, limit=hours_back)
     
     def test_connection(self):
-        """测试所有交易所连接"""
+        """测试交易所连接（按需初始化）"""
         results = {}
         
-        for exchange_info in self.exchanges:
-            name = exchange_info['name']
+        for config in self.exchange_configs:
+            name = config['name']
             try:
+                # 延迟初始化交易所
+                exchange_info = self._lazy_init_exchange(config)
+                
+                if exchange_info['status'] != 'available':
+                    results[name] = {'status': 'init_failed', 'error': exchange_info.get('error', 'unknown')}
+                    continue
+                
                 exchange = exchange_info['instance']
                 
                 # 测试获取少量数据
                 ohlcv = exchange.fetch_ohlcv('BTC/USDT', '1h', limit=5)
                 if ohlcv and len(ohlcv) > 0:
                     results[name] = {'status': 'success', 'data_count': len(ohlcv)}
-                    exchange_info['status'] = 'available'
                 else:
                     results[name] = {'status': 'no_data'}
                     exchange_info['status'] = 'error'
                     
             except Exception as e:
                 results[name] = {'status': 'error', 'error': str(e)}
-                exchange_info['status'] = 'error'
+                if name in self._initialized_exchanges:
+                    self._initialized_exchanges[name]['status'] = 'error'
         
         return results
 

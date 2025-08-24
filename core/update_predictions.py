@@ -49,7 +49,8 @@ def get_default_config():
         "sampling": {
             "temperature": 0.6,
             "top_p": 0.9,
-            "num_samples": 30
+            "num_samples": 30,
+            "volatility_temperature_multiplier": 1.0
         },
         "data": {
             "symbol": "BTCUSDT",
@@ -67,6 +68,7 @@ def get_default_config():
             "chart_filename": "frontend/prediction_chart.png",
             "html_filename": "frontend/index.html", 
             "auto_commit": True,
+            "auto_push": False,
             "web_server_port": 8000
         },
         "logging": {
@@ -81,7 +83,7 @@ CONFIG = load_config()
 
 # 向后兼容的配置映射
 Config = {
-    "REPO_PATH": Path(__file__).parent.resolve(),
+    "REPO_PATH": Path(__file__).parent.parent.resolve(),  # 修复：指向项目根目录
     "MODEL_PATH": CONFIG["model"]["model_path"],
     "MODEL_NAME": CONFIG["model"]["model_name"],
     "TOKENIZER_NAME": CONFIG["model"]["tokenizer_name"],
@@ -95,6 +97,9 @@ Config = {
     "PRED_HORIZON": CONFIG["data"]["forecast_horizon"],
     "N_PREDICTIONS": CONFIG["sampling"]["num_samples"],
     "VOL_WINDOW": CONFIG["data"]["volatility_window"],
+    "VOL_TEMP_MULTIPLIER": CONFIG["sampling"]["volatility_temperature_multiplier"],
+    "AUTO_COMMIT": CONFIG["output"]["auto_commit"],
+    "AUTO_PUSH": CONFIG["output"]["auto_push"],
 }
 
 # 设置日志
@@ -212,29 +217,52 @@ def make_prediction(df, predictor):
     x_timestamp = df['timestamps']
     x_df = df[['open', 'high', 'low', 'close', 'volume', 'amount']]
 
+    vol_temp_multiplier = Config["VOL_TEMP_MULTIPLIER"]
+    
     with torch.no_grad():
-        logger.info(f"开始主要预测 (T={Config['TEMPERATURE']}, top_p={Config['TOP_P']}, samples={Config['N_PREDICTIONS']})...")
-        begin_time = time.time()
-        close_preds_main, volume_preds_main = predictor.predict(
-            df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
-            pred_len=Config["PRED_HORIZON"], T=Config["TEMPERATURE"], 
-            top_p=Config["TOP_P"], sample_count=Config["N_PREDICTIONS"], 
-            verbose=True
-        )
-        elapsed_time = time.time() - begin_time
-        logger.info(f"主要预测完成，耗时: {elapsed_time:.2f}秒")
+        # 如果波动性温度倍数为1.0，则进行一次预测
+        if vol_temp_multiplier == 1.0:
+            logger.info(f"开始单次预测 (T={Config['TEMPERATURE']}, top_p={Config['TOP_P']}, samples={Config['N_PREDICTIONS']})...")
+            begin_time = time.time()
+            close_preds_main, volume_preds_main = predictor.predict(
+                df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+                pred_len=Config["PRED_HORIZON"], T=Config["TEMPERATURE"], 
+                top_p=Config["TOP_P"], sample_count=Config["N_PREDICTIONS"], 
+                verbose=True
+            )
+            elapsed_time = time.time() - begin_time
+            logger.info(f"单次预测完成，耗时: {elapsed_time:.2f}秒")
+            
+            # 波动性预测使用相同的结果
+            close_preds_volatility = close_preds_main
+            logger.info(f"使用相同预测结果进行波动性分析 (温度倍数={vol_temp_multiplier})")
+            
+        else:
+            # 如果波动性温度倍数不为1.0，则进行两次预测
+            vol_temperature = Config["TEMPERATURE"] * vol_temp_multiplier
+            
+            logger.info(f"开始主要预测 (T={Config['TEMPERATURE']}, top_p={Config['TOP_P']}, samples={Config['N_PREDICTIONS']})...")
+            begin_time = time.time()
+            close_preds_main, volume_preds_main = predictor.predict(
+                df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+                pred_len=Config["PRED_HORIZON"], T=Config["TEMPERATURE"], 
+                top_p=Config["TOP_P"], sample_count=Config["N_PREDICTIONS"], 
+                verbose=True
+            )
+            elapsed_time = time.time() - begin_time
+            logger.info(f"主要预测完成，耗时: {elapsed_time:.2f}秒")
 
-        # 生成波动性预测 (使用较高温度增加变异性)
-        logger.info(f"开始波动性预测 (T={Config['TEMPERATURE'] * 1.2}, top_p={Config['TOP_P']})...")
-        begin_time = time.time()
-        close_preds_volatility, _ = predictor.predict(
-            df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
-            pred_len=Config["PRED_HORIZON"], T=Config["TEMPERATURE"] * 1.2, 
-            top_p=Config["TOP_P"], sample_count=Config["N_PREDICTIONS"], 
-            verbose=True
-        )
-        elapsed_time = time.time() - begin_time
-        logger.info(f"波动性预测完成，耗时: {elapsed_time:.2f}秒")
+            # 生成波动性预测 (使用配置的温度倍数)
+            logger.info(f"开始波动性预测 (T={vol_temperature:.2f}, top_p={Config['TOP_P']}, 倍数={vol_temp_multiplier})...")
+            begin_time = time.time()
+            close_preds_volatility, _ = predictor.predict(
+                df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+                pred_len=Config["PRED_HORIZON"], T=vol_temperature, 
+                top_p=Config["TOP_P"], sample_count=Config["N_PREDICTIONS"], 
+                verbose=True
+            )
+            elapsed_time = time.time() - begin_time
+            logger.info(f"波动性预测完成，耗时: {elapsed_time:.2f}秒")
 
     return close_preds_main, volume_preds_main, close_preds_volatility
 
@@ -487,22 +515,36 @@ def update_html(upside_prob, vol_amp_prob):
 
 
 def git_commit_and_push(commit_message):
-    """Adds, commits, and pushes specified files to the Git repository."""
+    """Adds, commits, and optionally pushes specified files to the Git repository."""
+    if not Config["AUTO_COMMIT"]:
+        print("Git自动提交已禁用，跳过Git操作")
+        return
+        
     print("Performing Git operations...")
     try:
         os.chdir(Config["REPO_PATH"])
         subprocess.run(['git', 'add', 'frontend/prediction_chart.png', 'frontend/index.html'], check=True, capture_output=True, text=True)
         commit_result = subprocess.run(['git', 'commit', '-m', commit_message], check=True, capture_output=True, text=True)
         print(commit_result.stdout)
-        push_result = subprocess.run(['git', 'push'], check=True, capture_output=True, text=True)
-        print(push_result.stdout)
-        print("Git push successful.")
+        print("Git commit successful.")
+        
+        # 根据配置决定是否推送
+        if Config["AUTO_PUSH"]:
+            push_result = subprocess.run(['git', 'push'], check=True, capture_output=True, text=True)
+            print(push_result.stdout)
+            print("Git push successful.")
+        else:
+            print("Git推送已禁用，仅进行本地提交 (auto_push=false)")
+            
     except subprocess.CalledProcessError as e:
         output = e.stdout if e.stdout else e.stderr
-        if "nothing to commit" in output or "Your branch is up to date" in output:
-            print("No new changes to commit or push.")
+        if "nothing to commit" in output:
+            print("No new changes to commit.")
+        elif "Your branch is up to date" in output and Config["AUTO_PUSH"]:
+            print("No new changes to push.")
         else:
-            print(f"A Git error occurred:\n--- STDOUT ---\n{e.stdout}\n--- STDERR ---\n{e.stderr}")
+            operation = "push" if Config["AUTO_PUSH"] and "push" in str(e.cmd) else "commit"
+            print(f"Git {operation} error occurred:\n--- STDOUT ---\n{e.stdout}\n--- STDERR ---\n{e.stderr}")
 
 
 def main_task(model):
