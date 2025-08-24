@@ -21,7 +21,7 @@ class DataPreloader:
     def __init__(self):
         self.data_manager = DataManager()
     
-    def download_historical_data(self, days_back=30):
+    def download_historical_data(self, days_back=30, from_date=None):
         """下载指定天数的历史数据"""
         logger.info(f"开始下载过去{days_back}天的历史数据...")
         

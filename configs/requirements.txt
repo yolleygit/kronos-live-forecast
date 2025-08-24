@@ -33,3 +33,4 @@ websockets>=11.0.0     # 实时数据流
 
 # 外部数据源 (可选)  
 yfinance>=0.2.0        # Yahoo Finance数据源
+ccxt>=4.0.0           # 统一交易所API库

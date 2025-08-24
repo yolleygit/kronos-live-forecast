@@ -99,7 +99,33 @@ class DataManager:
         """从交易所获取新数据"""
         logger.info(f"从交易所获取{limit}条最新数据...")
         
-        # 尝试方法1: Binance API
+        # 尝试方法1: CCXT统一交易所API (主推方案)
+        try:
+            from ccxt_data_source import CCXTDataSource
+            ccxt_source = CCXTDataSource()
+            
+            # 转换symbol格式 (BTCUSDT -> BTC/USDT)
+            symbol_ccxt = self.symbol.replace('USDT', '/USDT').replace('BTC', 'BTC')
+            if not '/' in symbol_ccxt:
+                symbol_ccxt = 'BTC/USDT'  # 默认
+                
+            df = ccxt_source.fetch_ohlcv_data(
+                symbol=symbol_ccxt, 
+                timeframe=self.timeframe, 
+                limit=limit
+            )
+            
+            if df is not None:
+                logger.info(f"✅ CCXT获取数据成功: {len(df)}条数据")
+                logger.info(f"时间范围: {df['timestamps'].min()} 至 {df['timestamps'].max()}")
+                return df
+            else:
+                logger.warning("CCXT返回空数据")
+                
+        except Exception as e1:
+            logger.warning(f"CCXT方法失败: {e1}")
+        
+        # 尝试方法2: 传统Binance API  
         try:
             client = Client()
             klines = client.get_klines(
@@ -112,10 +138,10 @@ class DataManager:
             logger.info(f"获取到{len(df)}条数据，时间范围: {df['timestamps'].min()} 至 {df['timestamps'].max()}")
             return df
             
-        except Exception as e1:
-            logger.warning(f"Binance API失败: {e1}")
+        except Exception as e2:
+            logger.warning(f"Binance API失败: {e2}")
         
-        # 尝试方法2: 直接REST API
+        # 尝试方法3: 直接REST API
         try:
             import requests
             url = "https://api.binance.com/api/v3/klines"
@@ -132,10 +158,10 @@ class DataManager:
             logger.info(f"获取到{len(df)}条数据，时间范围: {df['timestamps'].min()} 至 {df['timestamps'].max()}")
             return df
             
-        except Exception as e2:
-            logger.warning(f"REST API也失败: {e2}")
+        except Exception as e3:
+            logger.warning(f"REST API也失败: {e3}")
         
-        # 尝试方法3: 外部数据源
+        # 尝试方法4: 外部数据源
         logger.info("尝试使用外部数据源...")
         try:
             from external_data_sources import MultiSourceDataManager
@@ -145,8 +171,8 @@ class DataManager:
             if df is not None:
                 logger.info(f"外部数据源获取成功: {len(df)}条数据")
                 return df
-        except Exception as e3:
-            logger.error(f"外部数据源也失败: {e3}")
+        except Exception as e4:
+            logger.error(f"外部数据源也失败: {e4}")
         
         logger.error("所有数据获取方法都失败")
         return None
@@ -182,6 +208,10 @@ class DataManager:
             fresh_df.to_parquet(self.cache_file)
             self._save_metadata({"last_update": datetime.now(timezone.utc).isoformat()})
             logger.info(f"全量更新完成，缓存了{len(fresh_df)}条数据")
+            
+            # 自动导出CSV
+            self._export_to_csv(fresh_df)
+            
             return True
         
         else:
@@ -207,6 +237,10 @@ class DataManager:
             combined_df.to_parquet(self.cache_file)
             self._save_metadata({"last_update": datetime.now(timezone.utc).isoformat()})
             logger.info(f"增量更新完成，当前缓存{len(combined_df)}条数据")
+            
+            # 自动导出CSV
+            self._export_to_csv(combined_df)
+            
             return True
     
     def get_data(self, hours=None):
@@ -247,6 +281,26 @@ class DataManager:
         """保存元数据"""
         with open(self.metadata_file, 'w') as f:
             json.dump(metadata, f, indent=2)
+    
+    def _export_to_csv(self, df):
+        """导出数据为CSV格式"""
+        try:
+            sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
+            from csv_exporter import CSVExporter
+            
+            exporter = CSVExporter(data_dir=self.data_dir)
+            symbol = self.symbol
+            timeframe = self.timeframe
+            
+            csv_path = exporter.export_dataframe(df, symbol, timeframe)
+            if csv_path:
+                logger.info(f"📄 CSV数据已导出: {Path(csv_path).name}")
+            
+            # 清理旧CSV文件，保留最新3个
+            exporter.cleanup_old_csv_files(keep_latest=3)
+            
+        except Exception as e:
+            logger.warning(f"CSV导出失败: {e}")
     
     def get_cache_status(self):
         """获取详细的缓存状态"""

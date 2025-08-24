@@ -32,9 +32,14 @@ Kronos-app/
 ├── img/                       # 静态图片
 ├── scripts/                   # 工具脚本
 ├── web/                       # Web相关
+├── tools/                     # 数据处理工具
+│   ├── setup_data.py         # 📥 数据初始化脚本
+│   ├── view_data.py          # 👁️ 数据查看工具
+│   ├── download_long_history.py # 📅 长期历史数据下载器
+│   ├── data_validator.py     # ✅ 数据验证修正工具
+│   └── csv_exporter.py       # 📄 CSV导出器
 ├── run_prediction.py          # 🚀 主启动脚本
-├── run_single.py             # 🔄 单次运行脚本
-└── setup_data.py             # 📥 数据初始化脚本
+└── run_single.py             # 🔄 单次运行脚本
 ```
 
 ## 🚀 快速开始
@@ -46,7 +51,7 @@ pip install -r configs/requirements.txt
 
 ### 2. 初始化数据（推荐）
 ```bash
-python setup_data.py --setup
+python tools/setup_data.py --setup
 ```
 
 ### 3. 运行预测
@@ -83,13 +88,16 @@ cd frontend && python -m http.server 8000
 
 ```bash
 # 数据质量验证
-python core/data_preloader.py --verify
+python tools/setup_data.py --verify
 
-# 检查缓存状态
-python core/data_manager.py
+# 数据查看和导出
+python tools/view_data.py --both
 
-# 测试外部数据源
-python core/external_data_sources.py
+# 长期历史数据下载
+python tools/download_long_history.py
+
+# 数据验证和修正
+python tools/data_validator.py
 ```
 
 ## 📝 更新日志
