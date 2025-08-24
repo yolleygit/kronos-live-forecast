@@ -17,8 +17,12 @@ from binance.client import Client
 from model import KronosTokenizer, Kronos, KronosPredictor
 
 
-def load_config(config_path="../configs/config.yaml"):
+def load_config(config_path=None):
     """加载配置文件"""
+    if config_path is None:
+        # 根据当前脚本位置动态确定配置路径
+        current_dir = Path(__file__).parent
+        config_path = current_dir.parent / "configs" / "config.yaml"
     try:
         with open(config_path, 'r', encoding='utf-8') as file:
             config = yaml.safe_load(file)
@@ -202,7 +206,7 @@ def make_prediction(df, predictor):
     new_timestamps_index = pd.date_range(
         start=start_new_range,
         periods=Config["PRED_HORIZON"],
-        freq='H'
+        freq='h'
     )
     y_timestamp = pd.Series(new_timestamps_index, name='y_timestamp')
     x_timestamp = df['timestamps']
