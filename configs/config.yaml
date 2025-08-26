@@ -13,13 +13,17 @@ sampling:
   top_p: 0.9       # Top-p采样参数 (0.1-1.0)  推荐-0.9
   num_samples: 30  # 蒙特卡洛采样次数 (建议: 10-50) 推荐-30
   volatility_temperature_multiplier: 1.0  # 波动性预测温度倍数，1.0表示一次预测，>1.0表示两次预测
+  
+  # 随机种子配置 - 确保结果可重现
+  random_seed: 42  # 固定随机种子，确保每次运行结果一致
+  enable_deterministic: true  # 启用确定性模式，减少随机性
 
 data:
-  symbol: "BTCUSDT"      # 交易对符号
+  symbol: "ETHUSDT"      # 交易对符号
   timeframe: "1h"        # 时间间隔 (1h, 4h, 1d等)
   history_window: 360    # 历史数据窗口 (小时数， 最大 512) 默认-360
-  forecast_horizon: 24   # 预测时间范围 (小时数) 默认-24
-  volatility_window: 24  # 波动性计算窗口 (小时数) 默认-24
+  forecast_horizon: 4   # 预测时间范围 (小时数) 默认-24
+  volatility_window_multiplier: 1.0  # 波动率窗口倍率 (相对于forecast_horizon) 默认-1.0
   cache_enabled: true    # 启用数据缓存
   cache_max_age_hours: 1 # 缓存数据最大年龄 (小时)
   cache_dir: "data"      # 缓存目录
@@ -40,4 +44,30 @@ output:
 logging:
   level: "INFO"           # 日志级别: DEBUG, INFO, WARNING, ERROR
   enable_file_logging: false  # 是否启用文件日志
+
+validation:
+  enable_metrics_validation: true   # 启用12个增强指标数学验算
+  show_validation_details: true    # 显示详细验算过程
+  stop_on_validation_error: false  # 验算错误时停止运行
+  
+  # 自适应容差配置
+  tolerance_strategy: "adaptive"   # fixed | adaptive | per_metric
+  validation_tolerance: 0.00015    # 验算容差 (验算器实际使用的参数)
+  default_tolerance: 0.00015       # 默认容差 (兼容性保留)
+  
+  # 针对confidence_score的特殊容差设置
+  confidence_score_tolerance: 0.00015  # 专门针对置信度指标的容差
+  
+  # 按指标类型设置容差
+  tolerance_by_type:
+    probability: 0.0001           # 概率指标 (相对容差)
+    percentage: 0.01              # 百分比指标 (绝对容差)  
+    score: 1.0                    # 评分指标 (整数容差)
+    ratio: 0.001                  # 比例指标 (对数容差)
+  
+  # 特定指标容差覆盖
+  metric_specific_tolerance:
+    vol_persistence_score: 0.01   # 波动持续性评分容差放宽
+    overall_vol_risk_score: 2.0   # 综合风险评分允许2分误差
+    avg_amplification_factor: 0.1 # 平均放大倍数容差
 

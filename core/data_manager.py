@@ -23,7 +23,8 @@ except ImportError:
             "symbol": "BTCUSDT",
             "timeframe": "1h", 
             "history_window": 360,
-            "volatility_window": 24
+            "forecast_horizon": 24,
+            "volatility_window_multiplier": 1.0
         }
     }
     import logging
@@ -37,15 +38,19 @@ class DataManager:
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(exist_ok=True)
         
-        # 数据文件路径
-        self.cache_file = self.data_dir / "btc_cache.parquet"
-        self.metadata_file = self.data_dir / "metadata.json"
-        self.db_file = self.data_dir / "market_data.db"
-        
         # 配置参数
         self.symbol = CONFIG["data"]["symbol"]
         self.timeframe = CONFIG["data"]["timeframe"]
-        self.required_hours = CONFIG["data"]["history_window"] + CONFIG["data"]["volatility_window"]
+        
+        # 数据文件路径 - 根据symbol动态生成
+        symbol_lower = self.symbol.lower().replace('usdt', '')  # BTCUSDT -> btc, ETHUSDT -> eth
+        self.cache_file = self.data_dir / f"{symbol_lower}_cache.parquet"
+        self.metadata_file = self.data_dir / f"{symbol_lower}_metadata.json"
+        self.db_file = self.data_dir / "market_data.db"
+        # 计算所需数据量：历史窗口 + 动态波动率窗口
+        volatility_window = int(CONFIG["data"]["forecast_horizon"] * CONFIG["data"]["volatility_window_multiplier"])
+        self.required_hours = CONFIG["data"]["history_window"] + volatility_window
+        self.volatility_window = volatility_window
         
         logger.info(f"数据管理器初始化完成，缓存目录: {self.data_dir}")
     

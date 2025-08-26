@@ -16,22 +16,31 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
 
-# Virtual environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# IDEs
+# Next.js
+.next/
+out/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
 .vscode/
 .idea/
 *.swp
@@ -47,14 +56,34 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
+# Data files (large files that change frequently)
+data/*.parquet
+data/*.csv
+data/*.json
+!data/README.md
+
+# Cache and temporary files
+*.cache
+*.tmp
+*.temp
+
 # Logs
 *.log
 logs/
 
-# Model cache (keep models external)
-models/
-*.safetensors
+# Model files (large external files)
+../Kronos_model/
 
-# Temporary files
-*.tmp
-*.temp
+# Generated files
+frontend/prediction_chart.png
+frontend/data.json
+web/public/prediction_chart.png
+web/public/data/
+validation_results/
+predictions_raw/
+records/
+
+# Backup files
+*.backup
+*.bak
+*.orig
