@@ -1,0 +1,61 @@
+# BTC 配置
+model:
+  model_name: "Kronos-base"
+  tokenizer_name: "Kronos-Tokenizer-base"
+  model_path: "../Kronos_model"
+  max_context: 512
+  device: "cpu"
+
+sampling:
+  temperature: 0.6
+  top_p: 0.9
+  num_samples: 30
+  volatility_temperature_multiplier: 1.0
+  random_seed: 42
+  enable_deterministic: true
+
+data:
+  symbol: "BTCUSDT"
+  timeframe: "1h"
+  history_window: 360
+  forecast_horizon: 4
+  volatility_window_multiplier: 1.0
+  cache_enabled: true
+  cache_max_age_hours: 1
+  cache_dir: "data"
+  update_mode: "auto"
+
+api:
+  binance_base_url: "https://api.binance.com"
+  request_timeout: 30
+  retry_attempts: 3
+
+output:
+  chart_filename: "prediction_chart.png"
+  html_filename: "index.html"
+  auto_commit: false
+  auto_push: false
+  web_server_port: 8000
+
+logging:
+  level: "INFO"
+  enable_file_logging: false
+
+validation:
+  enable_metrics_validation: true
+  show_validation_details: true
+  stop_on_validation_error: false
+  tolerance_strategy: "adaptive"
+  validation_tolerance: 0.00015
+  default_tolerance: 0.00015
+  confidence_score_tolerance: 0.00015
+  tolerance_by_type:
+    probability: 0.0001
+    percentage: 0.01
+    score: 1.0
+    ratio: 0.001
+  metric_specific_tolerance:
+    vol_persistence_score: 0.01
+    overall_vol_risk_score: 2.0
+    avg_amplification_factor: 0.1
+

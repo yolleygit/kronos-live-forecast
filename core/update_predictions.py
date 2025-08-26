@@ -48,6 +48,10 @@ def setup_random_seeds(config):
 
 def load_config(config_path=None):
     """加载配置文件"""
+    # 允许通过环境变量覆盖配置路径（优先级最高）
+    env_config = os.environ.get("KRONOS_CONFIG")
+    if env_config:
+        config_path = Path(env_config)
     if config_path is None:
         # 根据当前脚本位置动态确定配置路径
         current_dir = Path(__file__).parent

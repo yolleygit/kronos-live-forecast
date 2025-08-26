@@ -10,6 +10,7 @@ import yaml
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import re
+import argparse
 
 # 添加核心模块路径
 
@@ -25,7 +26,12 @@ from core.update_predictions import load_model, main_task
 
 def load_config():
     """加载配置文件"""
-    config_path = project_root / "configs" / "config.yaml"
+    # 支持通过环境变量或命令行参数覆盖配置路径
+    env_cfg = os.environ.get("KRONOS_CONFIG")
+    if env_cfg:
+        config_path = Path(env_cfg)
+    else:
+        config_path = project_root / "configs" / "config.yaml"
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
@@ -181,6 +187,11 @@ def run_scheduler(model, config):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Kronos scheduler")
+    parser.add_argument("--config", type=str, help="Path to config.yaml", default=None)
+    args = parser.parse_args()
+    if args.config:
+        os.environ["KRONOS_CONFIG"] = args.config
     try:
         print("🚀 启动 Kronos 自动化预测系统...")
         print("=" * 60)

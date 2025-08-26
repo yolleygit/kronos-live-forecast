@@ -2,19 +2,31 @@
 """
 Kronos Live Forecast - 单次运行版本
 用于测试和开发，避免进入持续调度循环
+支持 --config 指定配置文件
 """
 
+import os
 import sys
 from pathlib import Path
+import argparse
 
-# 导入主要功能
-from update_predictions import (
-    load_model, main_task, CONFIG, Config, logger
-)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run single prediction task")
+    parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
+    return parser.parse_args()
 
 
 def main():
     """单次运行主函数"""
+    args = parse_args()
+    if args.config:
+        os.environ["KRONOS_CONFIG"] = args.config
+
+    # 导入主要功能（延迟导入，确保环境变量生效）
+    from update_predictions import (
+        load_model, main_task, CONFIG, Config, logger
+    )
     logger.info("=" * 60)
     logger.info("Kronos Live Forecast - 单次运行模式")
     logger.info("=" * 60)
