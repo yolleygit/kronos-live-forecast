@@ -87,6 +87,44 @@ cd frontend && python -m http.server 8000
 - 采样参数：温度、top-p、样本数量
 - 数据源：交易所API配置和缓存设置
 
+### 🧭 多配置运行（BTC/ETH）
+
+完成 `configs/config.btc.yaml` 与 `configs/config.eth.yaml` 配置后，可按需运行：
+
+1) 单次运行（用于测试）
+```bash
+# BTC 单次运行
+python run_single.py --config configs/config.btc.yaml
+
+# ETH 单次运行
+python run_single.py --config configs/config.eth.yaml
+```
+
+2) 持续调度运行（按配置的 timeframe 定时触发）
+```bash
+# BTC 调度
+python run_prediction.py --config configs/config.btc.yaml
+
+# ETH 调度
+python run_prediction.py --config configs/config.eth.yaml
+```
+
+3) 一键并行运行两套调度（后台运行）
+```bash
+mkdir -p logs
+./scripts/start_dual_symbols.sh configs/config.btc.yaml configs/config.eth.yaml
+
+# 查看日志
+tail -f logs/btc_scheduler.out
+tail -f logs/eth_scheduler.out
+```
+
+可选：也支持通过环境变量指定配置（与 --config 等价，优先级相同）：
+```bash
+KRONOS_CONFIG=configs/config.btc.yaml python run_single.py
+KRONOS_CONFIG=configs/config.eth.yaml python run_prediction.py
+```
+
 ## 📊 核心功能
 
 ### 🆕 增强版指标体系（12个指标）
